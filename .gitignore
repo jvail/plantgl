@@ -22,6 +22,7 @@ build-scons_qt5
 .Python
 env/
 build/
+build-cmake/
 develop-eggs/
 dist/
 downloads/
