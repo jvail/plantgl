@@ -33,20 +33,48 @@
 #include <boost/python.hpp>
 #include <plantgl/scenegraph/scene/scene.h>
 #include <plantgl/algo/codec/drcprinter.h>
+#include <plantgl/algo/codec/serializer.h>
+
+#include <fstream>
 
 PGL_USING_NAMESPACE
 
-boost::python::object  scene_to_drc(Scene *scene, int speed = 0)
+boost::python::object scene_to_drc(Scene *scene, int speed = 0)
 {
   size_t size = 0;
   char* data = DrcPrinter::print(scene, &size, speed);
-  boost::python::object  memoryView(boost::python::handle<>(PyMemoryView_FromMemory(data, size, PyBUF_READ)));
+  boost::python::object memoryView(boost::python::handle<>(PyMemoryView_FromMemory(data, size, PyBUF_READ)));
   return memoryView;
+}
+
+boost::python::dict serialize(Scene *scene)
+{
+
+  boost::python::dict dict;
+  dict["status"] = false;
+  Serializer serializer;
+
+  if (scene->apply(serializer)) {
+    size_t size = serializer.size();
+    char *data = static_cast<char*>(malloc(size * sizeof(char)));
+    memcpy(data, serializer.data(), size * sizeof(char));
+    boost::python::object memoryView(boost::python::handle<>(PyMemoryView_FromMemory(data, size, PyBUF_READ)));
+    dict["data"] = memoryView;
+    boost::python::list list;
+    std::vector<size_t> offsets = serializer.offsets();
+    std::vector<size_t>::iterator it;
+    for (it = offsets.begin(); it != offsets.end(); ++it) {
+      list.append(*it);
+    }
+    dict["offsets"] = list;
+    dict["status"] = true;
+  }
+
+  return dict;
 }
 
 void export_Jupyter()
 {
-
   boost::python::def("scene_to_drc", &scene_to_drc);
-
+  boost::python::def("serialize", &serialize);
 }
