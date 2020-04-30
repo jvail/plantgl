@@ -47,12 +47,13 @@ boost::python::object scene_to_drc(Scene *scene, int speed = 0)
   return memoryView;
 }
 
-boost::python::dict serialize(Scene *scene)
+boost::python::dict serialize(Scene *scene, int speed)
 {
 
   boost::python::dict dict;
   dict["status"] = false;
   Serializer serializer;
+  serializer.setSpeed(speed);
 
   if (scene->apply(serializer)) {
     size_t size = serializer.size();
