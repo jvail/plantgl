@@ -212,7 +212,7 @@ bool Serializer::endProcess()
 
     draco::EncoderBuffer buffer;
     draco::ExpertEncoder encoder(*mesh_no_instances.get());
-    encoder.SetSpeedOptions(10, 10);
+    encoder.SetSpeedOptions(__speed,__speed);
     auto status = encoder.EncodeToBuffer(&buffer);
     if (!status.ok()) {
       return false;
@@ -301,7 +301,7 @@ bool Serializer::endProcess()
 
         draco::EncoderBuffer buffer;
         draco::ExpertEncoder encoder(*mesh.get());
-        encoder.SetSpeedOptions(10, 10);
+        encoder.SetSpeedOptions(__speed, __speed);
         auto status = encoder.EncodeToBuffer(&buffer);
         if (!status.ok()) {
           return false;

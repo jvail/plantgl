@@ -188,6 +188,7 @@ public:
 
   virtual bool process( Font * font );
 
+  void setSpeed(int speed) { __speed = std::max(0, std::min(10, speed)); }
   char* data() { return __data.data(); }
   size_t size() { return __data.size(); }
   std::vector<size_t> offsets() { return __offsets; }
@@ -211,9 +212,11 @@ protected:
   MatrixStack __modelmatrix;
   MatrixStack __texturematrix;
 
-  int __red;
-  int __green;
-  int __blue;
+  int __red = 255;
+  int __green = 255;
+  int __blue = 255;
+
+  int __speed = 3;
 
 
 private:
