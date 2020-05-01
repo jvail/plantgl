@@ -130,6 +130,144 @@ Serializer::~Serializer() {
     __data.clear();
 }
 
+bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
+{
+    auto mesh = std::unique_ptr<draco::Mesh>(new draco::Mesh());
+    size_t num_faces = soup.triangles->getIndexListSize();
+
+    mesh->SetNumFaces(num_faces);
+    mesh->set_num_points(num_faces * 3);
+    draco::GeometryAttribute position_attr;
+    position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 3, draco::DT_FLOAT32, false,
+              DataTypeLength(draco::DT_FLOAT32) * 3, 0);
+    draco::GeometryAttribute color_attr;
+    color_attr.Init(draco::GeometryAttribute::COLOR, nullptr, 3, draco::DT_UINT8, false,
+          DataTypeLength(draco::DT_UINT8) * 3, 0);
+
+    int pos_attr_id = mesh->AddAttribute(position_attr, true, mesh->num_points());
+    int col_attr_id = mesh->AddAttribute(color_attr, true, mesh->num_points());
+
+    mesh->SetAttributeElementType(pos_attr_id, draco::MeshAttributeElementType::MESH_CORNER_ATTRIBUTE);
+    mesh->SetAttributeElementType(col_attr_id, draco::MeshAttributeElementType::MESH_FACE_ATTRIBUTE);
+
+    size_t index = 0;
+    draco::PointAttribute *const pos_attr = mesh->attribute(pos_attr_id);
+    draco::PointAttribute *const col_attr = mesh->attribute(col_attr_id);
+
+    auto triangles = soup.triangles;
+    auto points = triangles->getPointList();
+
+    for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
+    {
+      std::cout << "index " << index << std::endl;
+      auto it3 = it2->begin();
+      Vector3 p1 = points->getAt(*(it3));
+      Vector3 p2 = points->getAt(*(++it3));
+      Vector3 p3 = points->getAt(*(++it3));
+
+      const size_t start_index = 3 * index;
+
+      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index),
+          draco::Vector3f(p1.x(), p1.y(), p1.z()).data());
+      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1),
+          draco::Vector3f(p2.x(), p2.y(), p2.z()).data());
+      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2),
+          draco::Vector3f(p3.x(), p3.y(), p3.z()).data());
+
+      uchar_t colors[3] = { (uchar_t)soup.red, (uchar_t)soup.green, (uchar_t)soup.blue };
+      col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index), &colors);
+      col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1), &colors);
+      col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2), &colors);
+
+      mesh->SetFace(draco::FaceIndex(index),
+          {{draco::PointIndex(start_index), draco::PointIndex(start_index + 1), draco::PointIndex(start_index + 2)}});
+
+      index++;
+    }
+
+    std::unique_ptr<draco::AttributeMetadata> attr_metadata =
+        std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
+    attr_metadata->AddEntryInt("id", id);
+    attr_metadata->AddEntryString("type", "mesh");
+    mesh->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
+
+    mesh->DeduplicateAttributeValues();
+    mesh->DeduplicatePointIds();
+
+    draco::EncoderBuffer buffer;
+    draco::ExpertEncoder encoder(*mesh.get());
+    encoder.SetSpeedOptions(__speed,__speed);
+    auto status = encoder.EncodeToBuffer(&buffer);
+    if (!status.ok()) {
+      return false;
+    }
+
+    auto bufferData = *buffer.buffer();
+    __data.insert(__data.end(), bufferData.begin(), bufferData.end());
+    __offsets.push_back(__data.size() - bufferData.size());
+}
+
+bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
+{
+  auto cloud = std::unique_ptr<draco::PointCloud>(new draco::PointCloud());
+  auto instances = soup.instances;
+  cloud->set_num_points(instances.size() * 4);
+  draco::GeometryAttribute position_attr;
+  position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 4, draco::DT_FLOAT32, false,
+            DataTypeLength(draco::DT_FLOAT32) * 4, 0);
+  draco::GeometryAttribute matrix_id_attr;
+  matrix_id_attr.Init(draco::GeometryAttribute::GENERIC, nullptr, 1, draco::DT_UINT8, false, 1, 0);
+
+  int pos_attr_id = cloud->AddAttribute(position_attr, true, instances.size() * 4);
+  int xid_attr_id = cloud->AddAttribute(matrix_id_attr, false, 4);
+
+  std::cout << "xid_attr_id " << xid_attr_id << "matrix_id_attr " << matrix_id_attr.unique_id() << std::endl;
+
+  size_t index = 0;
+  draco::PointAttribute *const pos_attr = cloud->attribute(pos_attr_id);
+  draco::PointAttribute *const xid_attr = cloud->attribute(xid_attr_id);
+
+  uint8_t row_0 = 0,  row_1 = 1,  row_2 = 2,  row_3 = 3;
+  xid_attr->SetAttributeValue(draco::AttributeValueIndex(0), &row_0);
+  xid_attr->SetAttributeValue(draco::AttributeValueIndex(1), &row_1);
+  xid_attr->SetAttributeValue(draco::AttributeValueIndex(2), &row_2);
+  xid_attr->SetAttributeValue(draco::AttributeValueIndex(3), &row_3);
+
+  for (auto it2 = instances.begin(); it2 != instances.end(); it2++)
+  {
+    const size_t start_index = 4 * index;
+    auto matrix = *it2;
+    for (int row = 0; row < 4; row++)
+    {
+      std::cout << "row " << row << std::endl;
+      auto data = matrix.getRow(row);
+      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + row),
+        draco::Vector4f(data.getAt(0), data.getAt(1), data.getAt(2), data.getAt(3)).data());
+      xid_attr->SetPointMapEntry(draco::PointIndex(start_index + row), draco::AttributeValueIndex(row));
+    }
+    index++;
+  }
+
+  std::unique_ptr<draco::AttributeMetadata> attr_metadata =
+    std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
+  attr_metadata->AddEntryInt("id", id);
+  attr_metadata->AddEntryString("type", "instances");
+  cloud->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
+
+  draco::EncoderBuffer buffer;
+  draco::ExpertEncoder encoder(*cloud.get());
+  encoder.SetSpeedOptions(__speed,__speed);
+  auto status = encoder.EncodeToBuffer(&buffer);
+  if (!status.ok()) {
+    return false;
+  }
+
+  auto bufferData = *buffer.buffer();
+  __data.insert(__data.end(), bufferData.begin(), bufferData.end());
+  __offsets.push_back(__data.size() - bufferData.size());
+
+}
+
 bool Serializer::beginProcess()
 {
   std::cout << "beginn" << std::endl;
@@ -143,182 +281,22 @@ bool Serializer::beginProcess()
 
 bool Serializer::endProcess()
 {
-  std::cout << "end" << std::endl;
-
-  auto mesh_no_instances = std::unique_ptr<draco::Mesh>(new draco::Mesh());
-  size_t numFaces = 0;
-
   TriangleSoupCache::Iterator it;
-  // collect all with zero instances
   for (it = __triangle_soup_cache.begin(); it != __triangle_soup_cache.end(); it++) {
-      if (it->second.instances.size() == 1) {
-        numFaces += it->second.triangles->getIndexListSize();
-      }
-  }
-
-  if (numFaces > 0) {
-    mesh_no_instances->SetNumFaces(numFaces);
-    mesh_no_instances->set_num_points(numFaces * 3);
-    draco::GeometryAttribute position_attr;
-    position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 3, draco::DT_FLOAT32, false,
-              DataTypeLength(draco::DT_FLOAT32) * 3, 0);
-    draco::GeometryAttribute color_attr;
-    color_attr.Init(draco::GeometryAttribute::COLOR, nullptr, 3, draco::DT_UINT8, false,
-          DataTypeLength(draco::DT_UINT8) * 3, 0);
-
-    int32_t pos_attr_id = mesh_no_instances->AddAttribute(position_attr, true, mesh_no_instances->num_points());
-    int32_t col_attr_id = mesh_no_instances->AddAttribute(color_attr, true, mesh_no_instances->num_points());
-    mesh_no_instances->SetAttributeElementType(pos_attr_id, draco::MeshAttributeElementType::MESH_CORNER_ATTRIBUTE);
-    mesh_no_instances->SetAttributeElementType(col_attr_id, draco::MeshAttributeElementType::MESH_FACE_ATTRIBUTE);
-    size_t index = 0;
-    draco::PointAttribute *const pos_attr = mesh_no_instances->attribute(pos_attr_id);
-    draco::PointAttribute *const col_attr = mesh_no_instances->attribute(col_attr_id);
-
-    for (it = __triangle_soup_cache.begin(); it != __triangle_soup_cache.end(); it++) {
-        if (it->second.instances.size() == 1) {
-          auto triangles = it->second.triangles;
-          auto points = triangles->getPointList();
-          for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
-          {
-              std::cout << "index " << index << std::endl;
-              auto it3 = it2->begin();
-              Vector3 p1 = points->getAt(*(it3));
-              Vector3 p2 = points->getAt(*(++it3));
-              Vector3 p3 = points->getAt(*(++it3));
-
-              const size_t start_index = 3 * index;
-
-              pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index),
-                  draco::Vector3f(p1.x(), p1.y(), p1.z()).data());
-              pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1),
-                  draco::Vector3f(p2.x(), p2.y(), p2.z()).data());
-              pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2),
-                  draco::Vector3f(p3.x(), p3.y(), p3.z()).data());
-              mesh_no_instances->SetFace(draco::FaceIndex(index),
-                  {{draco::PointIndex(start_index), draco::PointIndex(start_index + 1), draco::PointIndex(start_index + 2)}});
-
-              uchar_t colors[3] = { (uchar_t)it->second.red, (uchar_t)it->second.green, (uchar_t)it->second.blue };
-              col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index), &colors);
-              col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1), &colors);
-              col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2), &colors);
-
-              index++;
-        }
+    if (it->second.triangles->getIndexListSize() > 0) {
+      bool mesh_ok = addMesh(it->first, it->second);
+      bool instances_ok = addInstances(it->first, it->second);
+      if (!mesh_ok || !instances_ok) {
+        return false;
       }
     }
-
-    mesh_no_instances->DeduplicateAttributeValues();
-    mesh_no_instances->DeduplicatePointIds();
-
-    draco::EncoderBuffer buffer;
-    draco::ExpertEncoder encoder(*mesh_no_instances.get());
-    encoder.SetSpeedOptions(__speed,__speed);
-    auto status = encoder.EncodeToBuffer(&buffer);
-    if (!status.ok()) {
-      return false;
-    }
-
-    auto bufferData = *buffer.buffer();
-    __data.insert(__data.end(), bufferData.begin(), bufferData.end());
-    __offsets.push_back(0);
   }
 
-  // collect all with instances
-  for (it = __triangle_soup_cache.begin(); it != __triangle_soup_cache.end(); it++) {
-      if (it->second.instances.size() > 1) {
-          std::cout << "getIndexListSize " << it->second.triangles->getIndexListSize() << std::endl;
-        auto triangles = it->second.triangles;
-        auto mesh = std::unique_ptr<draco::Mesh>(new draco::Mesh());
-        mesh->SetNumFaces(triangles->getIndexListSize());
-        mesh->set_num_points(triangles->getIndexListSize() * 3);
-        draco::GeometryAttribute position_attr;
-        position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 3, draco::DT_FLOAT32, false,
-            DataTypeLength(draco::DT_FLOAT32) * 3, 0);
-        draco::GeometryAttribute color_attr;
-        color_attr.Init(draco::GeometryAttribute::COLOR, nullptr, 3, draco::DT_UINT8, false,
-          DataTypeLength(draco::DT_UINT8) * 3, 0);
+  auto myfile = std::fstream("mesh.drc", std::ios::out | std::ios::binary);
+  myfile.write(__data.data(), __data.size());
+  myfile.close();
 
-        int32_t pos_attr_id = mesh->AddAttribute(position_attr, true, mesh->num_points());
-        int32_t col_attr_id = mesh->AddAttribute(color_attr, true, mesh->num_points());
-
-        mesh->SetAttributeElementType(pos_attr_id, draco::MeshAttributeElementType::MESH_CORNER_ATTRIBUTE);
-        mesh->SetAttributeElementType(col_attr_id, draco::MeshAttributeElementType::MESH_FACE_ATTRIBUTE);
-
-        auto points = triangles->getPointList();
-        size_t index = 0;
-        for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
-        {
-            std::cout << "index " << index << std::endl;
-            auto it3 = it2->begin();
-            Vector3 p1 = points->getAt(*(it3));
-            Vector3 p2 = points->getAt(*(++it3));
-            Vector3 p3 = points->getAt(*(++it3));
-
-            const size_t start_index = 3 * index;
-            draco::PointAttribute *const pos_attr = mesh->attribute(pos_attr_id);
-            draco::PointAttribute *const col_attr = mesh->attribute(col_attr_id);
-
-            pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index),
-                draco::Vector3f(p1.x(), p1.y(), p1.z()).data());
-            pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1),
-                draco::Vector3f(p2.x(), p2.y(), p2.z()).data());
-            pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2),
-                draco::Vector3f(p3.x(), p3.y(), p3.z()).data());
-            mesh->SetFace(draco::FaceIndex(index),
-                {{draco::PointIndex(start_index), draco::PointIndex(start_index + 1), draco::PointIndex(start_index + 2)}});
-
-            uchar_t colors[3] = { (uchar_t)it->second.red, (uchar_t)it->second.green, (uchar_t)it->second.blue };
-            col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index), &colors);
-            col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1), &colors);
-            col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2), &colors);
-
-            index++;
-        }
-
-        std::cout << "num_attributes " << mesh->num_attributes() << std::endl;
-        std::cout << "num_faces " << mesh->num_faces() << std::endl;
-        std::cout << "num_points " << mesh->num_points() << std::endl;
-
-        std::unique_ptr<draco::AttributeMetadata> instance_attr_metadata =
-            std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
-        instance_attr_metadata->set_att_unique_id(1000);
-
-        std::vector<real_t> instances;
-        for (size_t i = 0; i < it->second.instances.size(); ++i) {
-            Matrix4 matrix = it->second.instances.at(i);
-            Matrix4::iterator it2;
-            for (it2 = matrix.begin(); it2 != matrix.end(); ++it2) {
-                instances.push_back(*it2);
-            }
-        }
-
-        instance_attr_metadata->AddEntryDoubleArray("instances", instances);
-        instance_attr_metadata->AddEntryString("test", "hallo");
-        mesh->AddAttributeMetadata(pos_attr_id, std::move(instance_attr_metadata));
-
-        mesh->DeduplicateAttributeValues();
-        mesh->DeduplicatePointIds();
-
-        draco::EncoderBuffer buffer;
-        draco::ExpertEncoder encoder(*mesh.get());
-        encoder.SetSpeedOptions(__speed, __speed);
-        auto status = encoder.EncodeToBuffer(&buffer);
-        if (!status.ok()) {
-          return false;
-        }
-
-        auto bufferData = *buffer.buffer();
-        __data.insert(__data.end(), bufferData.begin(), bufferData.end());
-        __offsets.push_back(__data.size() - bufferData.size());
-
-      }
-      std::cout << it->first << " " << it->second.instances.size() << std::endl;
-
-  }
-
-  // auto myfile = std::fstream("mesh_cpp.drc", std::ios::out | std::ios::binary);
-  // myfile.write(__data.data(), __data.size());
-  // myfile.close();
+  std::cout << "end" << std::endl;
 
   return true;
 }

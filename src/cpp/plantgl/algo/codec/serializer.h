@@ -67,7 +67,6 @@ struct TriangleSoup
         : id(id), triangles(triangles), instances({matrix}) {}
 };
 
-
 /**
    \class Serializer
    \brief An action which serializes GEOMs.
@@ -220,6 +219,8 @@ protected:
 
 
 private:
+  bool addMesh(size_t id, const TriangleSoup & soup);
+  bool addInstances(size_t id, const TriangleSoup & soup);
   std::vector<char> __data;
   std::vector<size_t> __offsets;
   template<class T>
