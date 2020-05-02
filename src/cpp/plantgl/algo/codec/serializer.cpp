@@ -65,11 +65,11 @@ bool Serializer::discretize(T *geom) {
   bool b = false;
   DiscretizerCache::Iterator it = __discretizer_cache.find((uint_t)geom->getObjectId());
   if (it != __discretizer_cache.end()) {
-    std::cout << "discretizer cached" << " " << (uint_t)geom->getObjectId() << std::endl;
+    // std::cout << "discretizer cached" << " " << (uint_t)geom->getObjectId() << std::endl;
     b = it->second->apply(*this);
   }
   else {
-       std::cout << "discretizer not cached" << " " << (uint_t)geom->getObjectId() << std::endl;
+      //  std::cout << "discretizer not cached" << " " << (uint_t)geom->getObjectId() << std::endl;
       if (__appearance && __appearance->isTexture())
         __discretizer.computeTexCoord(true);
       else __discretizer.computeTexCoord(false);
@@ -88,11 +88,11 @@ bool Serializer::tesselate(T *geom) {
   bool b = false;
   TesselatorCache::Iterator it = __tesselator_cache.find((uint_t)geom->getObjectId());
   if (it != __tesselator_cache.end()) {
-    std::cout << "tesselator cached" << " " << (uint_t)geom->getObjectId() << std::endl;
+    // std::cout << "tesselator cached" << " " << (uint_t)geom->getObjectId() << std::endl;
     b = it->second->apply(*this);
   }
   else {
-       std::cout << "tesselator not cached" << " " << (uint_t)geom->getObjectId() << std::endl;
+      //  std::cout << "tesselator not cached" << " " << (uint_t)geom->getObjectId() << std::endl;
       b = geom->apply(__tesselator);
       if (b && (b = (__tesselator.getTriangulation()))) {
         __tesselator_cache.insert((uint_t)geom->getObjectId(), __tesselator.getTriangulation());
@@ -132,6 +132,8 @@ Serializer::~Serializer() {
 
 bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
 {
+    std::cout << "addMesh id" << " " << id << std::endl;
+
     auto mesh = std::unique_ptr<draco::Mesh>(new draco::Mesh());
     size_t num_faces = soup.triangles->getIndexListSize();
 
@@ -211,6 +213,8 @@ bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
 
 bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
 {
+  std::cout << "addInstances id" << " " << id << "size " << soup.instances.size() << std::endl;
+
   auto cloud = std::unique_ptr<draco::PointCloud>(new draco::PointCloud());
   auto instances = soup.instances;
   cloud->set_num_points(instances.size());
@@ -224,7 +228,7 @@ bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
   int pos_attr_id = cloud->AddAttribute(position_attr, true, instances.size());
   int xid_attr_id = cloud->AddAttribute(matrix_id_attr, true, instances.size());
 
-  std::cout << "xid_attr_id " << xid_attr_id << "matrix_id_attr " << matrix_id_attr.unique_id() << std::endl;
+  // std::cout << "xid_attr_id " << xid_attr_id << "matrix_id_attr " << matrix_id_attr.unique_id() << std::endl;
 
   uint32_t index = 0;
   draco::PointAttribute *const pos_attr = cloud->attribute(pos_attr_id);
@@ -425,7 +429,7 @@ bool Serializer::process(ExtrudedHull *extrudedHull) {
 bool Serializer::process(FaceSet *faceSet) {
   GEOM_ASSERT_OBJ(faceSet);
 
-  std::cout << "faceSet" << " " << (uint_t)faceSet->getObjectId()  << std::endl;
+  // std::cout << "faceSet" << " " << (uint_t)faceSet->getObjectId()  << std::endl;
   SERIALIZER_TESSELATE(faceSet);
 
 }
@@ -449,7 +453,7 @@ bool Serializer::process(Group *group) {
 bool Serializer::process(IFS *ifs) {
   GEOM_ASSERT_OBJ(ifs);
 
-  std::cout << "ifs" << std::endl;
+  // std::cout << "ifs" << std::endl;
 
   ITPtr transfos;
   transfos = dynamic_pointer_cast<IT>(ifs->getTransformation());
@@ -567,7 +571,7 @@ bool Serializer::process(NurbsPatch *nurbsPatch) {
 bool Serializer::process(Oriented *oriented) {
   GEOM_ASSERT_OBJ(oriented);
 
-  std::cout << "oriented" << std::endl;
+  // std::cout << "oriented" << std::endl;
 
   PUSH_MODELMATRIX;
 
@@ -602,7 +606,7 @@ bool Serializer::process(PGL(Polyline) *polyline) {
 
 bool Serializer::process(QuadSet *quadSet) {
   GEOM_ASSERT_OBJ(quadSet);
-  std::cout << "quadSet" << " " << (uint_t)quadSet->getObjectId() << std::endl;
+  // std::cout << "quadSet" << " " << (uint_t)quadSet->getObjectId() << std::endl;
 
   SERIALIZER_TESSELATE(quadSet);
 
@@ -619,7 +623,7 @@ bool Serializer::process(Swung *swung) {
 bool Serializer::process(Scaled *scaled) {
   GEOM_ASSERT_OBJ(scaled);
 
-  std::cout << "scaled" << std::endl;
+  // std::cout << "scaled" << std::endl;
 
   PUSH_MODELMATRIX;
 
@@ -644,7 +648,7 @@ bool Serializer::process(Sphere *sphere) {
 bool Serializer::process(Tapered *tapered) {
   GEOM_ASSERT_OBJ(tapered);
 
-  std::cout << "tapered" << std::endl;
+  // std::cout << "tapered" << std::endl;
 
   PrimitivePtr _primitive = tapered->getPrimitive();
   if (_primitive->apply(__discretizer)) {
@@ -663,7 +667,7 @@ bool Serializer::process(Tapered *tapered) {
 bool Serializer::process(Translated *translated) {
   GEOM_ASSERT_OBJ(translated);
 
-  std::cout << "translated" << " " << (uint_t)translated->getObjectId() << std::endl;
+  // std::cout << "translated" << " " << (uint_t)translated->getObjectId() << std::endl;
 
   PUSH_MODELMATRIX;
   __modelmatrix.translate(translated->getTranslation());
@@ -675,13 +679,8 @@ bool Serializer::process(Translated *translated) {
 
 bool Serializer::process(TriangleSet *triangleSet)
 {
-    std::cout << "triangleSet" << " " << (uint_t)triangleSet->getObjectId() << std::endl;
     auto matrix = __modelmatrix.getMatrix();
-    Matrix4::iterator i;
-    for (i = matrix.begin(); i != matrix.end(); ++i) {
-        std::cout << *i << " ";
-    }
-    uint_t id = (uint_t)triangleSet->getObjectId();
+    size_t id = triangleSet->getObjectId();
     TriangleSoupCache::Iterator it = __triangle_soup_cache.find(id);
     if (it != __triangle_soup_cache.end()) {
         it->second.instances.push_back(__modelmatrix.getMatrix());
@@ -690,7 +689,6 @@ bool Serializer::process(TriangleSet *triangleSet)
         soup.red = __red;
         soup.green = __green;
         soup.blue = __blue;
-        std::cout << "colors " << __red << " "  << __green << " " << __blue << std::endl;
         __triangle_soup_cache.insert(id, soup);
     }
 
