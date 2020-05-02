@@ -159,7 +159,7 @@ bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
 
     for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
     {
-      std::cout << "index " << index << std::endl;
+      // std::cout << "index " << index << std::endl;
       auto it3 = it2->begin();
       Vector3 p1 = points->getAt(*(it3));
       Vector3 p2 = points->getAt(*(++it3));
@@ -211,40 +211,36 @@ bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
 {
   auto cloud = std::unique_ptr<draco::PointCloud>(new draco::PointCloud());
   auto instances = soup.instances;
-  cloud->set_num_points(instances.size() * 4);
+  cloud->set_num_points(instances.size());
   draco::GeometryAttribute position_attr;
-  position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 4, draco::DT_FLOAT32, false,
-            DataTypeLength(draco::DT_FLOAT32) * 4, 0);
+  position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 16, draco::DT_FLOAT32, false,
+            DataTypeLength(draco::DT_FLOAT32) * 16, 0);
   draco::GeometryAttribute matrix_id_attr;
-  matrix_id_attr.Init(draco::GeometryAttribute::GENERIC, nullptr, 1, draco::DT_UINT8, false, 1, 0);
+  matrix_id_attr.Init(draco::GeometryAttribute::GENERIC, nullptr, 1, draco::DT_INT32, false,
+    DataTypeLength(draco::DT_INT32), 0);
 
-  int pos_attr_id = cloud->AddAttribute(position_attr, true, instances.size() * 4);
-  int xid_attr_id = cloud->AddAttribute(matrix_id_attr, false, 4);
+  int pos_attr_id = cloud->AddAttribute(position_attr, true, instances.size());
+  int xid_attr_id = cloud->AddAttribute(matrix_id_attr, true, instances.size());
 
   std::cout << "xid_attr_id " << xid_attr_id << "matrix_id_attr " << matrix_id_attr.unique_id() << std::endl;
 
-  size_t index = 0;
+  uint32_t index = 0;
   draco::PointAttribute *const pos_attr = cloud->attribute(pos_attr_id);
   draco::PointAttribute *const xid_attr = cloud->attribute(xid_attr_id);
 
-  uint8_t row_0 = 0,  row_1 = 1,  row_2 = 2,  row_3 = 3;
-  xid_attr->SetAttributeValue(draco::AttributeValueIndex(0), &row_0);
-  xid_attr->SetAttributeValue(draco::AttributeValueIndex(1), &row_1);
-  xid_attr->SetAttributeValue(draco::AttributeValueIndex(2), &row_2);
-  xid_attr->SetAttributeValue(draco::AttributeValueIndex(3), &row_3);
-
-  for (auto it2 = instances.begin(); it2 != instances.end(); it2++)
+  for (auto it = instances.begin(); it != instances.end(); it++)
   {
-    const size_t start_index = 4 * index;
-    auto matrix = *it2;
-    for (int row = 0; row < 4; row++)
-    {
-      std::cout << "row " << row << std::endl;
-      auto data = matrix.getRow(row);
-      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + row),
-        draco::Vector4f(data.getAt(0), data.getAt(1), data.getAt(2), data.getAt(3)).data());
-      xid_attr->SetPointMapEntry(draco::PointIndex(start_index + row), draco::AttributeValueIndex(row));
+    std::vector<float_t> data;
+    auto matrix = *it;
+    for (uchar_t i=0; i<4; i++) {
+      auto row = matrix.getRow(i);
+      data.push_back(row.getAt(0));
+      data.push_back(row.getAt(1));
+      data.push_back(row.getAt(2));
+      data.push_back(row.getAt(3));
     }
+    pos_attr->SetAttributeValue(draco::AttributeValueIndex(index), data.data());
+    xid_attr->SetAttributeValue(draco::AttributeValueIndex(index), &index);
     index++;
   }
 
@@ -254,9 +250,13 @@ bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
   attr_metadata->AddEntryString("type", "instances");
   cloud->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
 
+  cloud->DeduplicateAttributeValues();
+  cloud->DeduplicatePointIds();
+
   draco::EncoderBuffer buffer;
   draco::ExpertEncoder encoder(*cloud.get());
-  encoder.SetSpeedOptions(__speed,__speed);
+  // encoder.SetEncodingMethod(draco::POINT_CLOUD_SEQUENTIAL_ENCODING);
+  encoder.SetSpeedOptions(10,10);
   auto status = encoder.EncodeToBuffer(&buffer);
   if (!status.ok()) {
     return false;
