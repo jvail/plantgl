@@ -205,6 +205,8 @@ bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
     auto bufferData = *buffer.buffer();
     __data.insert(__data.end(), bufferData.begin(), bufferData.end());
     __offsets.push_back(__data.size() - bufferData.size());
+
+    return true;
 }
 
 bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
@@ -265,6 +267,8 @@ bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
   auto bufferData = *buffer.buffer();
   __data.insert(__data.end(), bufferData.begin(), bufferData.end());
   __offsets.push_back(__data.size() - bufferData.size());
+
+  return true;
 
 }
 
