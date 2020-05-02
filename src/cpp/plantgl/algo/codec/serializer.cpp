@@ -130,7 +130,7 @@ Serializer::~Serializer() {
     __data.clear();
 }
 
-bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
+bool Serializer::addMesh(uint_t id, const TriangleSoup &soup)
 {
     std::cout << "addMesh id" << " " << id << std::endl;
 
@@ -189,7 +189,7 @@ bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
 
     std::unique_ptr<draco::AttributeMetadata> attr_metadata =
         std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
-    attr_metadata->AddEntryInt("id", id);
+    attr_metadata->AddEntryInt("id", (int)id);
     attr_metadata->AddEntryString("type", "mesh");
     mesh->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
 
@@ -211,7 +211,7 @@ bool Serializer::addMesh(size_t id, const TriangleSoup &soup)
     return true;
 }
 
-bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
+bool Serializer::addInstances(uint_t id, const TriangleSoup & soup)
 {
   std::cout << "addInstances id" << " " << id << "size " << soup.instances.size() << std::endl;
 
@@ -252,7 +252,7 @@ bool Serializer::addInstances(size_t id, const TriangleSoup & soup)
 
   std::unique_ptr<draco::AttributeMetadata> attr_metadata =
     std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
-  attr_metadata->AddEntryInt("id", id);
+  attr_metadata->AddEntryInt("id", (int)id);
   attr_metadata->AddEntryString("type", "instances");
   cloud->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
 
@@ -292,8 +292,8 @@ bool Serializer::endProcess()
   TriangleSoupCache::Iterator it;
   for (it = __triangle_soup_cache.begin(); it != __triangle_soup_cache.end(); it++) {
     if (it->second.triangles->getIndexListSize() > 0) {
-      bool mesh_ok = addMesh(it->first, it->second);
-      bool instances_ok = addInstances(it->first, it->second);
+      bool mesh_ok = addMesh((uint_t)it->first, it->second);
+      bool instances_ok = addInstances((uint_t)it->first, it->second);
       if (!mesh_ok || !instances_ok) {
         return false;
       }
@@ -680,7 +680,7 @@ bool Serializer::process(Translated *translated) {
 bool Serializer::process(TriangleSet *triangleSet)
 {
     auto matrix = __modelmatrix.getMatrix();
-    size_t id = triangleSet->getObjectId();
+    uint_t id = (uint_t)triangleSet->getObjectId();
     TriangleSoupCache::Iterator it = __triangle_soup_cache.find(id);
     if (it != __triangle_soup_cache.end()) {
         it->second.instances.push_back(__modelmatrix.getMatrix());

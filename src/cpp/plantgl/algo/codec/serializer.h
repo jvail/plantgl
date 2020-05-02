@@ -219,8 +219,8 @@ protected:
 
 
 private:
-  bool addMesh(size_t id, const TriangleSoup & soup);
-  bool addInstances(size_t id, const TriangleSoup & soup);
+  bool addMesh(uint_t id, const TriangleSoup & soup);
+  bool addInstances(uint_t id, const TriangleSoup & soup);
   std::vector<char> __data;
   std::vector<size_t> __offsets;
   template<class T>
