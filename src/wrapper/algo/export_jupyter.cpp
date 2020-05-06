@@ -39,7 +39,7 @@
 
 PGL_USING_NAMESPACE
 
-boost::python::object scene_to_drc(Scene *scene, int speed = 0)
+boost::python::object scene_to_drc(Scene *scene, int speed=0)
 {
   size_t size = 0;
   char* data = DrcPrinter::print(scene, &size, speed);
@@ -47,13 +47,14 @@ boost::python::object scene_to_drc(Scene *scene, int speed = 0)
   return memoryView;
 }
 
-boost::python::dict serialize(Scene *scene, int speed)
+boost::python::dict serialize(Scene *scene, bool single_mesh=true, int speed=0)
 {
 
   boost::python::dict dict;
   dict["status"] = false;
   Serializer serializer;
   serializer.setSpeed(speed);
+  serializer.setSingleMesh(single_mesh);
 
   if (scene->apply(serializer)) {
     size_t size = serializer.size();
@@ -74,8 +75,13 @@ boost::python::dict serialize(Scene *scene, int speed)
   return dict;
 }
 
+BOOST_PYTHON_FUNCTION_OVERLOADS(serialize_overloads, serialize, 1, 3)
+
 void export_Jupyter()
 {
   boost::python::def("scene_to_drc", &scene_to_drc);
-  boost::python::def("serialize", &serialize);
+  boost::python::def("serialize", &serialize, serialize_overloads(
+    (boost::python::arg("scene"),
+     boost::python::arg("single_mesh")=true,
+     boost::python::arg("speed")=0)));
 }

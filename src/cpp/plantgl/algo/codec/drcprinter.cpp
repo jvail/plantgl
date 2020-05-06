@@ -685,9 +685,9 @@ DrcPrinter::process(ScenePtr scene)
   encoder.SetAttributeQuantization(draco::GeometryAttribute::GENERIC, 8);
   encoder.SetSpeedOptions(__speed, __speed);
 
-  encoder.EncodeToBuffer(&__buffer);
+  auto status = encoder.EncodeToBuffer(&__buffer);
 
-  return true;
+  return status.ok();
 }
 
 

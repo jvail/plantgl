@@ -54,17 +54,32 @@
 
 PGL_BEGIN_NAMESPACE
 
-// TODO: add texture, material (color) per instance?
-struct TriangleSoup
+class Mesh;
+
+struct Instance {
+  Matrix4 matrix;
+  int red;
+  int green;
+  int blue;
+  Instance(const Matrix4 &matrix, int red, int green, int blue)
+    : matrix(matrix), red(red), green(green), blue(blue) {}
+};
+
+// TODO: add texture per instance?
+struct TriangleSetInstances
 {
     uint_t id;
     TriangleSet *triangles;
-    std::vector<Matrix4> instances;
-    int red;
-    int green;
-    int blue;
-    TriangleSoup(uint_t id, TriangleSet *triangles, Matrix4 &matrix)
-        : id(id), triangles(triangles), instances({matrix}) {}
+    std::vector<Instance> instances;
+    TriangleSetInstances(uint_t id, TriangleSet *triangles, const Instance &instance)
+        : id(id), triangles(triangles), instances({instance}) {}
+};
+
+struct TriangleSoup
+{
+  std::vector<TriangleSet> meshs;
+  std::vector<Color3> colors;
+  int numFaces = 0;
 };
 
 /**
@@ -188,6 +203,7 @@ public:
   virtual bool process( Font * font );
 
   void setSpeed(int speed) { __speed = std::max(0, std::min(10, speed)); }
+  void setSingleMesh(bool b) { __single_mesh = b; }
   char* data() { return __data.data(); }
   size_t size() { return __data.size(); }
   std::vector<size_t> offsets() { return __offsets; }
@@ -196,9 +212,7 @@ protected:
 
   typedef Cache<ExplicitModelPtr> DiscretizerCache;
   DiscretizerCache __discretizer_cache;
-  typedef Cache<TriangleSetPtr> TesselatorCache;
-  TesselatorCache __tesselator_cache;
-  typedef Cache<TriangleSoup> TriangleSoupCache;
+  typedef Cache<TriangleSetInstances> TriangleSoupCache;
   TriangleSoupCache __triangle_soup_cache;
 
   /// The discretizer used to store the discretize parametric while
@@ -215,12 +229,15 @@ protected:
   int __green = 255;
   int __blue = 255;
 
-  int __speed = 3;
 
 
 private:
-  bool addMesh(uint_t id, const TriangleSoup & soup);
-  bool addInstances(uint_t id, const TriangleSoup & soup);
+  bool __single_mesh = true;
+  TriangleSoup __triangleSoup;
+  int __speed = 0;
+  bool addMesh(const std::vector<TriangleSetInstances> & soups);
+  bool addInstanceMesh(const TriangleSetInstances & soup);
+  bool addInstances(draco::GeometryMetadata *metadata, const TriangleSetInstances & soup);
   std::vector<char> __data;
   std::vector<size_t> __offsets;
   template<class T>

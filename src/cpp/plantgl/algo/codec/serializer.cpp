@@ -43,8 +43,7 @@
 #include <plantgl/scenegraph/container/pointarray.h>
 #include <plantgl/scenegraph/container/geometryarray2.h>
 
-#include <fstream>
-
+// #include <fstream>
 
 PGL_USING_NAMESPACE
 TOOLS_USING_NAMESPACE
@@ -55,7 +54,7 @@ TOOLS_USING_NAMESPACE
 #define GEOM_SERIALIZER_CHECK_APPEARANCE(app) \
   if (__appearance.get() == (Appearance *)app) return true;
 
-#define GEOM_GLRENDERER_UPDATE_APPEARANCE(app) \
+#define GEOM_SERIALIZER_UPDATE_APPEARANCE(app) \
   __appearance = AppearancePtr(app);
 
 
@@ -63,21 +62,19 @@ template<class T>
 bool Serializer::discretize(T *geom) {
   GEOM_ASSERT_OBJ(geom);
   bool b = false;
+
   DiscretizerCache::Iterator it = __discretizer_cache.find((uint_t)geom->getObjectId());
   if (it != __discretizer_cache.end()) {
-    // std::cout << "discretizer cached" << " " << (uint_t)geom->getObjectId() << std::endl;
     b = it->second->apply(*this);
-  }
-  else {
-      //  std::cout << "discretizer not cached" << " " << (uint_t)geom->getObjectId() << std::endl;
-      if (__appearance && __appearance->isTexture())
-        __discretizer.computeTexCoord(true);
-      else __discretizer.computeTexCoord(false);
-      b = geom->apply(__discretizer);
-      if (b && (b = (__discretizer.getDiscretization()))) {
-        __discretizer_cache.insert((uint_t)geom->getObjectId(), __discretizer.getDiscretization());
-        b = __discretizer.getDiscretization()->apply(*this);
-      }
+  } else {
+    if (__appearance && __appearance->isTexture())
+      __discretizer.computeTexCoord(true);
+    else __discretizer.computeTexCoord(false);
+    b = geom->apply(__discretizer);
+    if (b && (b = (__discretizer.getDiscretization()))) {
+      __discretizer_cache.insert((uint_t)geom->getObjectId(), __discretizer.getDiscretization());
+      b = __discretizer.getDiscretization()->apply(*this);
+    }
   }
   return b;
 }
@@ -86,29 +83,21 @@ template<class T>
 bool Serializer::tesselate(T *geom) {
   GEOM_ASSERT_OBJ(geom);
   bool b = false;
-  TesselatorCache::Iterator it = __tesselator_cache.find((uint_t)geom->getObjectId());
-  if (it != __tesselator_cache.end()) {
-    // std::cout << "tesselator cached" << " " << (uint_t)geom->getObjectId() << std::endl;
-    b = it->second->apply(*this);
-  }
-  else {
-      //  std::cout << "tesselator not cached" << " " << (uint_t)geom->getObjectId() << std::endl;
-      b = geom->apply(__tesselator);
-      if (b && (b = (__tesselator.getTriangulation()))) {
-        __tesselator_cache.insert((uint_t)geom->getObjectId(), __tesselator.getTriangulation());
-        b = __tesselator.getTriangulation()->apply(*this);
-      }
+  if (__appearance && __appearance->isTexture())
+    __tesselator.computeTexCoord(true);
+  else __tesselator.computeTexCoord(false);
+  b = geom->apply(__tesselator);
+  if (b && (b = (__tesselator.getDiscretization()))) {
+    b = __tesselator.getDiscretization()->apply(*this);
   }
   return b;
 }
-
-
 
 #define SERIALIZER_DISCRETIZE(geom) \
   return discretize(geom); \
 
 #define SERIALIZER_TESSELATE(geom) \
-  return tesselate(geom); \
+  return tesselate(geom) \
 
 #define  PUSH_MODELMATRIX __modelmatrix.push();
 
@@ -125,20 +114,22 @@ Serializer::Serializer() :
 
 Serializer::~Serializer() {
     __discretizer_cache.clear();
-    __tesselator_cache.clear();
     __triangle_soup_cache.clear();
     __data.clear();
 }
 
-bool Serializer::addMesh(uint_t id, const TriangleSoup &soup)
+bool Serializer::addMesh(const std::vector<TriangleSetInstances> &soups)
 {
-    std::cout << "addMesh id" << " " << id << std::endl;
+  auto mesh = std::unique_ptr<draco::Mesh>(new draco::Mesh());
+  size_t numFaces = 0;
 
-    auto mesh = std::unique_ptr<draco::Mesh>(new draco::Mesh());
-    size_t num_faces = soup.triangles->getIndexListSize();
+  for (int i = 0; i < soups.size(); i++) {
+      numFaces += soups.at(i).triangles->getIndexListSize();
+  }
 
-    mesh->SetNumFaces(num_faces);
-    mesh->set_num_points(num_faces * 3);
+  if (numFaces > 0) {
+    mesh->SetNumFaces(numFaces);
+    mesh->set_num_points(numFaces * 3);
     draco::GeometryAttribute position_attr;
     position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 3, draco::DT_FLOAT32, false,
               DataTypeLength(draco::DT_FLOAT32) * 3, 0);
@@ -146,9 +137,8 @@ bool Serializer::addMesh(uint_t id, const TriangleSoup &soup)
     color_attr.Init(draco::GeometryAttribute::COLOR, nullptr, 3, draco::DT_UINT8, false,
           DataTypeLength(draco::DT_UINT8) * 3, 0);
 
-    int pos_attr_id = mesh->AddAttribute(position_attr, true, mesh->num_points());
-    int col_attr_id = mesh->AddAttribute(color_attr, true, mesh->num_points());
-
+    int32_t pos_attr_id = mesh->AddAttribute(position_attr, true, mesh->num_points());
+    int32_t col_attr_id = mesh->AddAttribute(color_attr, true, mesh->num_points());
     mesh->SetAttributeElementType(pos_attr_id, draco::MeshAttributeElementType::MESH_CORNER_ATTRIBUTE);
     mesh->SetAttributeElementType(col_attr_id, draco::MeshAttributeElementType::MESH_FACE_ATTRIBUTE);
 
@@ -156,49 +146,59 @@ bool Serializer::addMesh(uint_t id, const TriangleSoup &soup)
     draco::PointAttribute *const pos_attr = mesh->attribute(pos_attr_id);
     draco::PointAttribute *const col_attr = mesh->attribute(col_attr_id);
 
-    auto triangles = soup.triangles;
-    auto points = triangles->getPointList();
+    for (int i = 0; i < soups.size(); i++) {
+      auto soup = soups.at(i);
+      auto instance = soup.instances.at(0);
+      TriangleSetPtr triangles;
+      if (instance.matrix != Matrix4()) {
+        Transformation3DPtr transform(new Transform4(instance.matrix));
+        triangles = dynamic_pointer_cast<TriangleSet>(soup.triangles->transform(transform)).get();
+      } else {
+        triangles = soup.triangles;
+      }
+      auto points = triangles->getPointList();
+      for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
+      {
+          auto it3 = it2->begin();
+          Vector3 p1 = points->getAt(*(it3));
+          Vector3 p2 = points->getAt(*(++it3));
+          Vector3 p3 = points->getAt(*(++it3));
 
-    for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
-    {
-      // std::cout << "index " << index << std::endl;
-      auto it3 = it2->begin();
-      Vector3 p1 = points->getAt(*(it3));
-      Vector3 p2 = points->getAt(*(++it3));
-      Vector3 p3 = points->getAt(*(++it3));
+          const size_t start_index = 3 * index;
 
-      const size_t start_index = 3 * index;
+          pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index),
+              draco::Vector3f(p1.x(), p1.y(), p1.z()).data());
+          pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1),
+              draco::Vector3f(p2.x(), p2.y(), p2.z()).data());
+          pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2),
+              draco::Vector3f(p3.x(), p3.y(), p3.z()).data());
+          mesh->SetFace(draco::FaceIndex(index),
+              {{draco::PointIndex(start_index), draco::PointIndex(start_index + 1), draco::PointIndex(start_index + 2)}});
 
-      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index),
-          draco::Vector3f(p1.x(), p1.y(), p1.z()).data());
-      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1),
-          draco::Vector3f(p2.x(), p2.y(), p2.z()).data());
-      pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2),
-          draco::Vector3f(p3.x(), p3.y(), p3.z()).data());
+          uchar_t colors[3] = { (uchar_t)instance.red, (uchar_t)instance.green, (uchar_t)instance.blue };
+          col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index), &colors);
+          col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1), &colors);
+          col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2), &colors);
 
-      uchar_t colors[3] = { (uchar_t)soup.red, (uchar_t)soup.green, (uchar_t)soup.blue };
-      col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index), &colors);
-      col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1), &colors);
-      col_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2), &colors);
-
-      mesh->SetFace(draco::FaceIndex(index),
-          {{draco::PointIndex(start_index), draco::PointIndex(start_index + 1), draco::PointIndex(start_index + 2)}});
-
-      index++;
+          index++;
+      }
     }
 
-    std::unique_ptr<draco::AttributeMetadata> attr_metadata =
-        std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
-    attr_metadata->AddEntryInt("id", (int)id);
-    attr_metadata->AddEntryString("type", "mesh");
-    mesh->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
+    auto metadata = std::unique_ptr<draco::GeometryMetadata>(new draco::GeometryMetadata());
+    metadata->AddEntryInt("id", 0);
+    metadata->AddEntryString("type", "mesh");
+    mesh->AddMetadata(std::move(metadata));
 
     mesh->DeduplicateAttributeValues();
     mesh->DeduplicatePointIds();
 
     draco::EncoderBuffer buffer;
     draco::ExpertEncoder encoder(*mesh.get());
-    encoder.SetSpeedOptions(__speed,__speed);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::POSITION, 12);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::TEX_COORD, 10);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::NORMAL, 7);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::GENERIC, 8);
+    encoder.SetSpeedOptions(__speed, __speed);
     auto status = encoder.EncodeToBuffer(&buffer);
     if (!status.ok()) {
       return false;
@@ -207,62 +207,78 @@ bool Serializer::addMesh(uint_t id, const TriangleSoup &soup)
     auto bufferData = *buffer.buffer();
     __data.insert(__data.end(), bufferData.begin(), bufferData.end());
     __offsets.push_back(__data.size() - bufferData.size());
+  }
 
-    return true;
+  return true;
 }
 
-bool Serializer::addInstances(uint_t id, const TriangleSoup & soup)
+bool Serializer::addInstanceMesh(const TriangleSetInstances &soup)
 {
-  std::cout << "addInstances id" << " " << id << "size " << soup.instances.size() << std::endl;
 
-  auto cloud = std::unique_ptr<draco::PointCloud>(new draco::PointCloud());
-  auto instances = soup.instances;
-  cloud->set_num_points(instances.size());
+  auto mesh = std::unique_ptr<draco::Mesh>(new draco::Mesh());
+  size_t num_faces = soup.triangles->getIndexListSize();
+
+  mesh->SetNumFaces(num_faces);
+  mesh->set_num_points(num_faces * 3);
   draco::GeometryAttribute position_attr;
-  position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 16, draco::DT_FLOAT32, false,
-            DataTypeLength(draco::DT_FLOAT32) * 16, 0);
-  draco::GeometryAttribute matrix_id_attr;
-  matrix_id_attr.Init(draco::GeometryAttribute::GENERIC, nullptr, 1, draco::DT_INT32, false,
-    DataTypeLength(draco::DT_INT32), 0);
+  position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 3, draco::DT_FLOAT32, false,
+            DataTypeLength(draco::DT_FLOAT32) * 3, 0);
 
-  int pos_attr_id = cloud->AddAttribute(position_attr, true, instances.size());
-  int xid_attr_id = cloud->AddAttribute(matrix_id_attr, true, instances.size());
+  int pos_attr_id = mesh->AddAttribute(position_attr, true, mesh->num_points());
+  // colors are added per instance in the instance pointcloud
+  mesh->SetAttributeElementType(pos_attr_id, draco::MeshAttributeElementType::MESH_CORNER_ATTRIBUTE);
 
-  // std::cout << "xid_attr_id " << xid_attr_id << "matrix_id_attr " << matrix_id_attr.unique_id() << std::endl;
+  size_t index = 0;
+  draco::PointAttribute *const pos_attr = mesh->attribute(pos_attr_id);
 
-  uint32_t index = 0;
-  draco::PointAttribute *const pos_attr = cloud->attribute(pos_attr_id);
-  draco::PointAttribute *const xid_attr = cloud->attribute(xid_attr_id);
+  auto triangles = soup.triangles;
+  auto instance = soup.instances[0];
+  auto points = triangles->getPointList();
 
-  for (auto it = instances.begin(); it != instances.end(); it++)
+  for (auto it2 = triangles->getIndexList()->begin(); it2 != triangles->getIndexList()->end(); it2++)
   {
-    std::vector<float_t> data;
-    auto matrix = *it;
-    for (uchar_t i=0; i<4; i++) {
-      auto row = matrix.getRow(i);
-      data.push_back(row.getAt(0));
-      data.push_back(row.getAt(1));
-      data.push_back(row.getAt(2));
-      data.push_back(row.getAt(3));
-    }
-    pos_attr->SetAttributeValue(draco::AttributeValueIndex(index), data.data());
-    xid_attr->SetAttributeValue(draco::AttributeValueIndex(index), &index);
+    auto it3 = it2->begin();
+    Vector3 p1 = points->getAt(*(it3));
+    Vector3 p2 = points->getAt(*(++it3));
+    Vector3 p3 = points->getAt(*(++it3));
+
+    const size_t start_index = 3 * index;
+
+    pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index),
+        draco::Vector3f(p1.x(), p1.y(), p1.z()).data());
+    pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 1),
+        draco::Vector3f(p2.x(), p2.y(), p2.z()).data());
+    pos_attr->SetAttributeValue(draco::AttributeValueIndex(start_index + 2),
+        draco::Vector3f(p3.x(), p3.y(), p3.z()).data());
+
+    mesh->SetFace(draco::FaceIndex(index),
+        {{draco::PointIndex(start_index), draco::PointIndex(start_index + 1), draco::PointIndex(start_index + 2)}});
+
     index++;
   }
 
-  std::unique_ptr<draco::AttributeMetadata> attr_metadata =
-    std::unique_ptr<draco::AttributeMetadata>(new draco::AttributeMetadata());
-  attr_metadata->AddEntryInt("id", (int)id);
-  attr_metadata->AddEntryString("type", "instances");
-  cloud->AddAttributeMetadata(pos_attr_id, std::move(attr_metadata));
+  auto metadata = std::unique_ptr<draco::GeometryMetadata>(new draco::GeometryMetadata());
+  metadata->AddEntryInt("id", (int)soup.id);
+  metadata->AddEntryString("type", "instanced_mesh");
 
-  cloud->DeduplicateAttributeValues();
-  cloud->DeduplicatePointIds();
+  // instances are a draco pointcloud as mesh metadata to get some compression of matrices
+  // the compression was tested against zfp and bzip2. zfp is not suitable for this type of data and bzip2
+  // has  abetter compression if we have  alot of 1 and 0 in the matrices (not the case if there is at least a
+  // translation and e.g. a scale).
+  if (!addInstances(metadata.get(), soup)) return false;
+
+  mesh->AddMetadata(std::move(metadata));
+
+  mesh->DeduplicateAttributeValues();
+  mesh->DeduplicatePointIds();
 
   draco::EncoderBuffer buffer;
-  draco::ExpertEncoder encoder(*cloud.get());
-  // encoder.SetEncodingMethod(draco::POINT_CLOUD_SEQUENTIAL_ENCODING);
-  encoder.SetSpeedOptions(10,10);
+  draco::ExpertEncoder encoder(*mesh.get());
+  encoder.SetAttributeQuantization(draco::GeometryAttribute::POSITION, 12);
+  encoder.SetAttributeQuantization(draco::GeometryAttribute::TEX_COORD, 10);
+  encoder.SetAttributeQuantization(draco::GeometryAttribute::NORMAL, 7);
+  encoder.SetAttributeQuantization(draco::GeometryAttribute::GENERIC, 8);
+  encoder.SetSpeedOptions(__speed, __speed);
   auto status = encoder.EncodeToBuffer(&buffer);
   if (!status.ok()) {
     return false;
@@ -273,14 +289,72 @@ bool Serializer::addInstances(uint_t id, const TriangleSoup & soup)
   __offsets.push_back(__data.size() - bufferData.size());
 
   return true;
+}
+
+bool Serializer::addInstances(draco::GeometryMetadata *metadata, const TriangleSetInstances & soup)
+{
+  auto cloud = std::unique_ptr<draco::PointCloud>(new draco::PointCloud());
+  auto instances = soup.instances;
+  cloud->set_num_points(instances.size());
+  draco::GeometryAttribute position_attr;
+  position_attr.Init(draco::GeometryAttribute::POSITION, nullptr, 16, draco::DT_FLOAT32, false,
+            DataTypeLength(draco::DT_FLOAT32) * 16, 0);
+  draco::GeometryAttribute color_id_attr;
+  color_id_attr.Init(draco::GeometryAttribute::COLOR, nullptr, 3, draco::DT_UINT8, false,
+    DataTypeLength(draco::DT_UINT8) * 3, 0);
+
+  int pos_attr_id = cloud->AddAttribute(position_attr, true, instances.size());
+  int col_attr_id = cloud->AddAttribute(color_id_attr, true, instances.size());
+
+  uint32_t index = 0;
+  draco::PointAttribute *const pos_attr = cloud->attribute(pos_attr_id);
+  draco::PointAttribute *const col_attr = cloud->attribute(col_attr_id);
+
+  for (auto it = instances.begin(); it != instances.end(); it++)
+  {
+    std::vector<float_t> data;
+    auto instance = *it;
+    for (uchar_t i=0; i<4; i++) {
+      auto row = instance.matrix.getRow(i);
+      for (uchar_t j=0; j<4; j++) {
+        data.push_back(row.getAt(j));
+      }
+    }
+    pos_attr->SetAttributeValue(draco::AttributeValueIndex(index), data.data());
+
+    uchar_t colors[3] = { (uchar_t)instance.red, (uchar_t)instance.green, (uchar_t)instance.blue };
+    col_attr->SetAttributeValue(draco::AttributeValueIndex(index), &colors);
+    index++;
+  }
+
+  auto cloud_metadata = std::unique_ptr<draco::GeometryMetadata>(new draco::GeometryMetadata());
+  cloud_metadata->AddEntryInt("id", (int)soup.id);
+  cloud_metadata->AddEntryString("type", "instances");
+  cloud->AddMetadata(std::move(cloud_metadata));
+
+  cloud->DeduplicateAttributeValues();
+  cloud->DeduplicatePointIds();
+
+  draco::EncoderBuffer buffer;
+  draco::ExpertEncoder encoder(*cloud.get());
+  encoder.SetAttributeQuantization(draco::GeometryAttribute::POSITION, 10);
+  encoder.SetSpeedOptions(__speed, __speed);
+  auto status = encoder.EncodeToBuffer(&buffer);
+  if (!status.ok()) {
+    return false;
+  }
+
+  auto bufferData = buffer.buffer();
+  std::vector<uint8_t> blob(bufferData->begin(), bufferData->end());
+  metadata->AddEntryBinary("instances", blob);
+
+  return true;
 
 }
 
 bool Serializer::beginProcess()
 {
-  std::cout << "beginn" << std::endl;
   __discretizer_cache.clear();
-  __tesselator_cache.clear();
   __triangle_soup_cache.clear();
   __data.clear();
   __offsets.clear();
@@ -289,22 +363,83 @@ bool Serializer::beginProcess()
 
 bool Serializer::endProcess()
 {
-  TriangleSoupCache::Iterator it;
-  for (it = __triangle_soup_cache.begin(); it != __triangle_soup_cache.end(); it++) {
-    if (it->second.triangles->getIndexListSize() > 0) {
-      bool mesh_ok = addMesh((uint_t)it->first, it->second);
-      bool instances_ok = addInstances((uint_t)it->first, it->second);
-      if (!mesh_ok || !instances_ok) {
-        return false;
+
+  if (__single_mesh) {
+    draco::TriangleSoupMeshBuilder mesh_builder;
+    uint32_t index = 0;
+
+    mesh_builder.Start(__triangleSoup.numFaces);
+
+    int pos_att_id = mesh_builder.AddAttribute(draco::GeometryAttribute::POSITION, 3, draco::DT_FLOAT32);
+    int col_att_id = mesh_builder.AddAttribute(draco::GeometryAttribute::COLOR, 3, draco::DT_UINT8);
+
+    for (int i = 0; i < __triangleSoup.meshs.size(); i++) {
+      auto mesh = &__triangleSoup.meshs.at(i);
+      auto color = __triangleSoup.colors.at(i);
+      auto points = mesh->getPointList();
+
+      for (Index3Array::const_iterator it = mesh->getIndexList()->begin(); it != mesh->getIndexList()->end(); it++)
+      {
+        auto it2 = it->begin();
+        Vector3 p1 = points->getAt(*(it2));
+        Vector3 p2 = points->getAt(*(++it2));
+        Vector3 p3 = points->getAt(*(++it2));
+
+        mesh_builder.SetAttributeValuesForFace(
+          pos_att_id, draco::FaceIndex(index),
+          draco::Vector3f(p1.x(), p1.y(), p1.z()).data(),
+          draco::Vector3f(p2.x(), p2.y(), p2.z()).data(),
+          draco::Vector3f(p3.x(), p3.y(), p3.z()).data()
+        );
+
+        mesh_builder.SetPerFaceAttributeValueForFace(
+          col_att_id, draco::FaceIndex(index), color.data()
+        );
+
+        index++;
       }
     }
+
+
+    auto mesh = mesh_builder.Finalize();
+    if (!mesh) {
+      return false;
+    }
+    auto metadata = std::unique_ptr<draco::GeometryMetadata>(new draco::GeometryMetadata());
+    metadata->AddEntryInt("id", 0);
+    metadata->AddEntryString("type", "mesh");
+    mesh->AddMetadata(std::move(metadata));
+    draco::ExpertEncoder encoder(*mesh.get());
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::POSITION, 12);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::TEX_COORD, 10);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::NORMAL, 7);
+    encoder.SetAttributeQuantization(draco::GeometryAttribute::GENERIC, 8);
+    encoder.SetSpeedOptions(__speed, __speed);
+    draco::EncoderBuffer buffer;
+    auto status = encoder.EncodeToBuffer(&buffer);
+    if (!status.ok()) {
+      return false;
+    }
+    auto bufferData = *buffer.buffer();
+    __data.insert(__data.end(), bufferData.begin(), bufferData.end());
+    __offsets.push_back(__data.size() - bufferData.size());
+
+  } else {
+
+    std::vector<TriangleSetInstances> soups;
+    for (auto it = __triangle_soup_cache.begin(); it != __triangle_soup_cache.end(); it++) {
+      if (it->second.instances.size() > 1) {
+        bool mesh_ok = addInstanceMesh(it->second);
+        if (!mesh_ok) return false;
+      } else {
+        soups.push_back(it->second);
+      }
+    }
+    if (soups.size() > 0) {
+      if (!addMesh(soups)) return false;
+    }
+    soups.clear();
   }
-
-  auto myfile = std::fstream("mesh.drc", std::ios::out | std::ios::binary);
-  myfile.write(__data.data(), __data.size());
-  myfile.close();
-
-  std::cout << "end" << std::endl;
 
   return true;
 }
@@ -325,7 +460,11 @@ bool Serializer::processAppereance(Shape *geomshape) {
 bool Serializer::processGeometry(Shape *geomshape)
 {
   GEOM_ASSERT(geomshape);
-  return geomshape->geometry->apply(*this);
+  if (__single_mesh) {
+    SERIALIZER_TESSELATE(geomshape);
+  } else {
+    return geomshape->geometry->apply(*this);
+  }
 }
 
 bool Serializer::process(Inline *geomInline) {
@@ -358,8 +497,7 @@ bool Serializer::process(Inline *geomInline) {
 
 bool Serializer::process(AmapSymbol *amapSymbol) {
   GEOM_ASSERT_OBJ(amapSymbol);
-
-  return true;
+  SERIALIZER_TESSELATE(amapSymbol);
 }
 
 bool Serializer::process(AsymmetricHull *asymmetricHull) {
@@ -368,7 +506,6 @@ bool Serializer::process(AsymmetricHull *asymmetricHull) {
 
 bool Serializer::process(AxisRotated *axisRotated) {
   GEOM_ASSERT_OBJ(axisRotated);
-
 
   const Vector3 &_axis = axisRotated->getAxis();
   const real_t &_angle = axisRotated->getAngle();
@@ -415,10 +552,9 @@ bool Serializer::process(EulerRotated *eulerRotated) {
   __modelmatrix.eulerRotationZYX(eulerRotated->getAzimuth(),
                             eulerRotated->getElevation(),
                             eulerRotated->getRoll());
-
   eulerRotated->getGeometry()->apply(*this);
-  POP_MODELMATRIX;
 
+  POP_MODELMATRIX;
   return true;
 }
 
@@ -427,11 +563,7 @@ bool Serializer::process(ExtrudedHull *extrudedHull) {
 }
 
 bool Serializer::process(FaceSet *faceSet) {
-  GEOM_ASSERT_OBJ(faceSet);
-
-  // std::cout << "faceSet" << " " << (uint_t)faceSet->getObjectId()  << std::endl;
   SERIALIZER_TESSELATE(faceSet);
-
 }
 
 bool Serializer::process(Frustum *frustum) {
@@ -444,16 +576,11 @@ bool Serializer::process(Extrusion *extrusion) {
 
 bool Serializer::process(Group *group) {
   GEOM_ASSERT_OBJ(group);
-
-  group->getGeometryList()->apply(*this);
-
-  return true;
+  return group->getGeometryList()->apply(*this);
 }
 
 bool Serializer::process(IFS *ifs) {
   GEOM_ASSERT_OBJ(ifs);
-
-  // std::cout << "ifs" << std::endl;
 
   ITPtr transfos;
   transfos = dynamic_pointer_cast<IT>(ifs->getTransformation());
@@ -495,42 +622,15 @@ bool Serializer::process(ImageTexture *texture) {
 
 bool Serializer::process(Texture2D *texture) {
   GEOM_ASSERT_OBJ(texture);
+
   GEOM_SERIALIZER_CHECK_APPEARANCE(texture);
 
   const Color4 color = texture->getBaseColor();
   __red = int(color.getRed());
   __green = int(color.getGreen());
   __blue = int(color.getBlue());
-/*
-  GLfloat _rgba[4];
 
-  _rgba[0] = (GLfloat) _color.getRedClamped();
-  _rgba[1] = (GLfloat) _color.getGreenClamped();
-  _rgba[2] = (GLfloat) _color.getBlueClamped();
-  _rgba[3] = 1.0f - _color.getAlphaClamped();
-
-  /// We set the current color in the case of disabling the lighting
-  glColor4fv(_rgba);
-  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, _rgba);
-  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, _rgba);
-
-  if (texture->getImage()) {
-    // load image
-    texture->getImage()->apply(*this);
-
-    // apply texture transformation
-    if (texture->getTransformation())
-      texture->getTransformation()->apply(*this);
-    else {
-      // Set Texture transformation to Id if no transformation is specified
-      glMatrixMode(GL_TEXTURE);
-      glLoadIdentity();
-      glMatrixMode(GL_MODELVIEW);
-    }
-  }
-  */
-
-  GEOM_GLRENDERER_UPDATE_APPEARANCE(texture);
+  GEOM_SERIALIZER_UPDATE_APPEARANCE(texture);
 
   return true;
 }
@@ -545,8 +645,7 @@ bool Serializer::process(MonoSpectral *monoSpectral) {
   GEOM_ASSERT_OBJ(monoSpectral);
 
   GEOM_SERIALIZER_CHECK_APPEARANCE(monoSpectral);
-
-  GEOM_GLRENDERER_UPDATE_APPEARANCE(monoSpectral);
+  GEOM_SERIALIZER_UPDATE_APPEARANCE(monoSpectral);
 
   return true;
 }
@@ -555,7 +654,7 @@ bool Serializer::process(MultiSpectral *multiSpectral) {
   GEOM_ASSERT_OBJ(multiSpectral);
 
   GEOM_SERIALIZER_CHECK_APPEARANCE(multiSpectral);
-  GEOM_GLRENDERER_UPDATE_APPEARANCE(multiSpectral);
+  GEOM_SERIALIZER_UPDATE_APPEARANCE(multiSpectral);
 
   return true;
 }
@@ -570,8 +669,6 @@ bool Serializer::process(NurbsPatch *nurbsPatch) {
 
 bool Serializer::process(Oriented *oriented) {
   GEOM_ASSERT_OBJ(oriented);
-
-  // std::cout << "oriented" << std::endl;
 
   PUSH_MODELMATRIX;
 
@@ -594,25 +691,23 @@ bool Serializer::process(Paraboloid *paraboloid) {
 
 bool Serializer::process(PointSet *pointSet) {
   GEOM_ASSERT_OBJ(pointSet);
-
-  return true;
+  // TODO ?
+  return false;
 }
 
 bool Serializer::process(PGL(Polyline) *polyline) {
   GEOM_ASSERT_OBJ(polyline);
-
+  // TODO ?
   return true;
 }
 
 bool Serializer::process(QuadSet *quadSet) {
   GEOM_ASSERT_OBJ(quadSet);
-  // std::cout << "quadSet" << " " << (uint_t)quadSet->getObjectId() << std::endl;
-
   SERIALIZER_TESSELATE(quadSet);
-
 }
 
 bool Serializer::process(Revolution *revolution) {
+  GEOM_ASSERT_OBJ(revolution);
   SERIALIZER_DISCRETIZE(revolution);
 }
 
@@ -623,12 +718,9 @@ bool Serializer::process(Swung *swung) {
 bool Serializer::process(Scaled *scaled) {
   GEOM_ASSERT_OBJ(scaled);
 
-  // std::cout << "scaled" << std::endl;
-
   PUSH_MODELMATRIX;
 
   __modelmatrix.scale(scaled->getScale());
-
   scaled->getGeometry()->apply(*this);
 
   POP_MODELMATRIX;
@@ -638,7 +730,7 @@ bool Serializer::process(Scaled *scaled) {
 
 bool Serializer::process(ScreenProjected *scp) {
   GEOM_ASSERT_OBJ(scp);
-  return true;
+  return false;
 }
 
 bool Serializer::process(Sphere *sphere) {
@@ -647,8 +739,6 @@ bool Serializer::process(Sphere *sphere) {
 
 bool Serializer::process(Tapered *tapered) {
   GEOM_ASSERT_OBJ(tapered);
-
-  // std::cout << "tapered" << std::endl;
 
   PrimitivePtr _primitive = tapered->getPrimitive();
   if (_primitive->apply(__discretizer)) {
@@ -667,11 +757,11 @@ bool Serializer::process(Tapered *tapered) {
 bool Serializer::process(Translated *translated) {
   GEOM_ASSERT_OBJ(translated);
 
-  // std::cout << "translated" << " " << (uint_t)translated->getObjectId() << std::endl;
-
   PUSH_MODELMATRIX;
+
   __modelmatrix.translate(translated->getTranslation());
   translated->getGeometry()->apply(*this);
+
   POP_MODELMATRIX;
 
   return true;
@@ -679,20 +769,26 @@ bool Serializer::process(Translated *translated) {
 
 bool Serializer::process(TriangleSet *triangleSet)
 {
-    auto matrix = __modelmatrix.getMatrix();
-    uint_t id = (uint_t)triangleSet->getObjectId();
-    TriangleSoupCache::Iterator it = __triangle_soup_cache.find(id);
-    if (it != __triangle_soup_cache.end()) {
-        it->second.instances.push_back(__modelmatrix.getMatrix());
-    } else {
-        auto soup = TriangleSoup(id, triangleSet, __modelmatrix.getMatrix());
-        soup.red = __red;
-        soup.green = __green;
-        soup.blue = __blue;
-        __triangle_soup_cache.insert(id, soup);
-    }
 
-    return true;
+  GEOM_ASSERT_OBJ(triangleSet);
+
+  uint_t id = (uint_t)triangleSet->getObjectId();
+  if (__single_mesh) {
+      __triangleSoup.colors.push_back(Color3(__red, __green, __blue));
+      __triangleSoup.numFaces += triangleSet->getIndexListSize();
+      __triangleSoup.meshs.push_back(*triangleSet);
+  } else {
+    TriangleSoupCache::Iterator it = __triangle_soup_cache.find((uint_t)triangleSet->getObjectId());
+    auto instance = Instance(__modelmatrix.getMatrix(), __red, __green, __blue);
+    if (it != __triangle_soup_cache.end()) {
+      it->second.instances.push_back(instance);
+    } else {
+      auto soup = TriangleSetInstances((uint_t)id, triangleSet, instance);
+      __triangle_soup_cache.insert((uint_t)triangleSet->getObjectId(), soup);
+    }
+  }
+
+  return true;
 }
 
 bool Serializer::process(BezierCurve2D *bezierCurve) {
@@ -717,10 +813,10 @@ bool Serializer::process(Polyline2D *polyline) {
 
 bool Serializer::process(Text *text) {
   GEOM_ASSERT_OBJ(text);
-  return true;
+  return false;
 }
 
 bool Serializer::process(Font *font) {
   GEOM_ASSERT_OBJ(font);
-  return true;
+  return false;
 }
