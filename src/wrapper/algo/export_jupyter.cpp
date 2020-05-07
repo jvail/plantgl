@@ -42,7 +42,7 @@ struct SerializedScene {
   boost::python::list offsets = boost::python::list();
 };
 
-SerializedScene serialize_scene(Scene *scene, bool single_mesh=true)
+SerializedScene serialize_scene(Scene *scene, bool single_mesh=false)
 {
 
   SerializedScene serialized;
