@@ -261,10 +261,9 @@ bool Serializer::addInstanceMesh(const TriangleSetInstances &soup)
   metadata->AddEntryInt("id", (int)soup.id);
   metadata->AddEntryString("type", "instanced_mesh");
 
-  // instances are a draco pointcloud as mesh metadata to get some compression of matrices
-  // the compression was tested against zfp and bzip2. zfp is not suitable for this type of data and bzip2
-  // has  abetter compression if we have  alot of 1 and 0 in the matrices (not the case if there is at least a
-  // translation and e.g. a scale).
+  // instances are a draco pointcloud added to the mesh's metadata. Then we get at least some compression (~1/3) of matrices.
+  // The compression was tested against zfp and bzip2. zfp is not suitable (bad compression) for this type of data and bzip2
+  // has a better compression if we have a lot of 1 and 0 in the matrices.
   if (!addInstances(metadata.get(), soup)) return false;
 
   mesh->AddMetadata(std::move(metadata));

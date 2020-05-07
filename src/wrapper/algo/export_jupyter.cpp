@@ -32,28 +32,22 @@
 
 #include <boost/python.hpp>
 #include <plantgl/scenegraph/scene/scene.h>
-#include <plantgl/algo/codec/drcprinter.h>
 #include <plantgl/algo/codec/serializer.h>
-
-#include <fstream>
 
 PGL_USING_NAMESPACE
 
-boost::python::object scene_to_drc(Scene *scene, int speed=0)
-{
-  size_t size = 0;
-  char* data = DrcPrinter::print(scene, &size, speed);
-  boost::python::object memoryView(boost::python::handle<>(PyMemoryView_FromMemory(data, size, PyBUF_READ)));
-  return memoryView;
-}
+struct SerializedScene {
+  bool status = false;
+  boost::python::object data = boost::python::object();
+  boost::python::list offsets = boost::python::list();
+};
 
-boost::python::dict serialize(Scene *scene, bool single_mesh=true, int speed=0)
+SerializedScene serialize_scene(Scene *scene, bool single_mesh=true)
 {
 
-  boost::python::dict dict;
-  dict["status"] = false;
+  SerializedScene serialized;
+  serialized.status = false;
   Serializer serializer;
-  serializer.setSpeed(speed);
   serializer.setSingleMesh(single_mesh);
 
   if (scene->apply(serializer)) {
@@ -61,27 +55,30 @@ boost::python::dict serialize(Scene *scene, bool single_mesh=true, int speed=0)
     char *data = static_cast<char*>(malloc(size * sizeof(char)));
     memcpy(data, serializer.data(), size * sizeof(char));
     boost::python::object memoryView(boost::python::handle<>(PyMemoryView_FromMemory(data, size, PyBUF_READ)));
-    dict["data"] = memoryView;
+    serialized.data = memoryView;
     boost::python::list list;
     std::vector<size_t> offsets = serializer.offsets();
     std::vector<size_t>::iterator it;
     for (it = offsets.begin(); it != offsets.end(); ++it) {
       list.append(*it);
     }
-    dict["offsets"] = list;
-    dict["status"] = true;
+    serialized.offsets = list;
+    serialized.status = true;
   }
 
-  return dict;
+  return serialized;
 }
 
-BOOST_PYTHON_FUNCTION_OVERLOADS(serialize_overloads, serialize, 1, 3)
+BOOST_PYTHON_FUNCTION_OVERLOADS(serialize_scene_overloads, serialize_scene, 1, 2)
 
 void export_Jupyter()
 {
-  boost::python::def("scene_to_drc", &scene_to_drc);
-  boost::python::def("serialize", &serialize, serialize_overloads(
+  boost::python::def("serialize_scene", &serialize_scene, serialize_scene_overloads(
     (boost::python::arg("scene"),
-     boost::python::arg("single_mesh")=true,
-     boost::python::arg("speed")=0)));
+     boost::python::arg("single_mesh")=true)));
+
+  boost::python::class_< SerializedScene > ("SerializedScene", boost::python::no_init )
+    .add_property("status", &SerializedScene::status)
+    .add_property("data", &SerializedScene::data)
+    .add_property("offsets", &SerializedScene::offsets);
 }

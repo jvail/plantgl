@@ -31,7 +31,7 @@
 
 
 /*! \file serializer.h
-    \brief Serialize GEOMs
+    \brief Serialize GEOMs to draco
 */
 
 
@@ -229,28 +229,26 @@ protected:
   int __green = 255;
   int __blue = 255;
 
-
-
 private:
-  bool __single_mesh = true;
-  TriangleSoup __triangleSoup;
-  int __speed = 0;
+  // add mesh with no instances (no of instances per triangleset = 1)
   bool addMesh(const std::vector<TriangleSetInstances> & soups);
+  // add mesh with instances
   bool addInstanceMesh(const TriangleSetInstances & soup);
+  // add instances to the mesh's metadata
   bool addInstances(draco::GeometryMetadata *metadata, const TriangleSetInstances & soup);
+
+  TriangleSoup __triangleSoup;
   std::vector<char> __data;
   std::vector<size_t> __offsets;
-  template<class T>
-  bool discretize(T * geom);
-  template<class T>
-  bool tesselate(T * geom);
+
+  bool __single_mesh = true;
+  int __speed = 0;
+
+  template<class T> bool discretize(T * geom);
+  template<class T> bool tesselate(T * geom);
 };
 
-/* ----------------------------------------------------------------------- */
-
 PGL_END_NAMESPACE
-
-/* ----------------------------------------------------------------------- */
 
 // __actn_serializer_h__
 #endif
