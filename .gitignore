@@ -83,5 +83,4 @@ src/cpp/plantgl/doxygenFile
 _pgl*.dylib
 .ipynb_checkpoints
 
-# IDE
 .vscode
