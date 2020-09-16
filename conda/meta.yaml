@@ -26,16 +26,16 @@ requirements:
       - cgal-cpp
       - qhull
       - ann
-      - qt 
+      - qt
       - pyqt
       - boost<=1.71 # boost module of conda-forge install boost.python and dependency boost-cpp for the cpp libs.
       - libpng
       - zlib
       - libglu                            # [linux]
       - xorg-libxfixes                    # [linux]
-          
+
   build:
-      - python {{PY_VER}}                 
+      - python {{PY_VER}}
       - binutils_impl_linux-64<2.31.0     # [linux]
       - {{ compiler('cxx') }}
       - bison                             # [unix]
@@ -43,7 +43,7 @@ requirements:
       - m2-bison                          # [win]
       - m2-flex                           # [win]
       - menuinst                          # [win]
-      - cmake >=3.12.0
+      - cmake=3.17.0
       - pkg-config                        # [linux]
       - make                              # [unix]
       - {{ cdt('mesa-libgl-devel') }}      # [linux]
@@ -58,14 +58,14 @@ requirements:
       - setuptools
       - ipython
       - {{ pin_compatible('numpy') }}
-      - {{ pin_compatible('boost',    max_pin='x.x.x') }} 
-      - {{ pin_compatible('qhull',    max_pin='x.x') }} 
-      - {{ pin_compatible('eigen',    max_pin='x.x') }} 
-      - {{ pin_compatible('cgal-cpp', max_pin='x.x') }} 
-      - {{ pin_compatible('ann',      max_pin='x.x') }} 
-      - {{ pin_compatible('qt',       max_pin='x.x') }} 
-      - {{ pin_compatible('libpng',   max_pin='x.x') }} 
-      - {{ pin_compatible('zlib',     max_pin='x.x') }} 
+      - {{ pin_compatible('boost',    max_pin='x.x.x') }}
+      - {{ pin_compatible('qhull',    max_pin='x.x') }}
+      - {{ pin_compatible('eigen',    max_pin='x.x') }}
+      - {{ pin_compatible('cgal-cpp', max_pin='x.x') }}
+      - {{ pin_compatible('ann',      max_pin='x.x') }}
+      - {{ pin_compatible('qt',       max_pin='x.x') }}
+      - {{ pin_compatible('libpng',   max_pin='x.x') }}
+      - {{ pin_compatible('zlib',     max_pin='x.x') }}
       - pyqt
       - pyopengl
       - pyqglviewer
@@ -87,4 +87,3 @@ test:
      - cd test
      - pytest -v --ignore=tofix --ignore=ui --ignore=oatest  # [unix]
      - pytest -v --ignore=tofix --ignore=ui --ignore=oatest --ignore=test_shared_data.py  # [win]
-

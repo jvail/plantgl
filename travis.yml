@@ -15,10 +15,10 @@ env:
  - CONDA_RECIPE=conda
    CONDA_VERSION=3
    CONDA_PY=37
- - CONDA_RECIPE=conda
-   CONDA_VERSION=3
-   CONDA_PY=38
-   CONDA_NPY=116
+#  - CONDA_RECIPE=conda
+#    CONDA_VERSION=3
+#    CONDA_PY=38
+#    CONDA_NPY=116
 
 install:
   - if [ `uname` = "Darwin" ]; then xcrun --show-sdk-path; fi
