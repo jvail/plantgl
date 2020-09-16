@@ -12,13 +12,13 @@ services:
   - docker
 
 env:
- - CONDA_RECIPE=conda
-   CONDA_VERSION=3
-   CONDA_PY=37
- - CONDA_RECIPE=conda
-   CONDA_VERSION=3
-   CONDA_PY=38
-   CONDA_NPY=116
+  - CONDA_RECIPE=conda
+    CONDA_VERSION=3
+    CONDA_PY=38
+    CONDA_NPY=116
+  - CONDA_RECIPE=conda
+    CONDA_VERSION=3
+    CONDA_PY=37
 
 before_install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get -y install libgl1-mesa-dev; fi
@@ -42,16 +42,16 @@ after_success:
 after_failure:
   - source after_failure.sh
 
-before_deploy:
-  - source before_deploy.sh
+# before_deploy:
+#   - source before_deploy.sh
 
-deploy:
-  skip_cleanup: true
-  provider: script
-  script: bash deploy_script.sh
+# deploy:
+#   skip_cleanup: true
+#   provider: script
+#   script: bash deploy_script.sh
 
-after_deploy:
-  - source after_deploy.sh
+# after_deploy:
+#   - source after_deploy.sh
 
 after_script:
   - source after_script.sh
