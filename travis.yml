@@ -12,9 +12,11 @@ services:
   - docker
 
 env:
- - CONDA_RECIPE=conda
-   CONDA_VERSION=3
-   CONDA_PY=37
+  - CONDA_RECIPE=conda
+    CONDA_VERSION=3
+    CONDA_PY=37
+    CFLAGS="-isysroot $(xcrun --show-sdk-path)" ARCHFLAGS="-isysroot $(xcrun --show-sdk-path)"
+
 #  - CONDA_RECIPE=conda
 #    CONDA_VERSION=3
 #    CONDA_PY=38
