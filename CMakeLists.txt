@@ -42,7 +42,7 @@ init_py_config("${CMAKE_CURRENT_SOURCE_DIR}/src/openalea/plantgl/config.py")
 # --- (Win32) Multithreaded Compilation
 
 if (MSVC)
-    string(REGEX REPLACE "/W3" "/W0" ${CMAKE_CXX_FLAGS} "${${CMAKE_CXX_FLAGS}}") 
+    string(REGEX REPLACE "/W3" "/W0" ${CMAKE_CXX_FLAGS} "${${CMAKE_CXX_FLAGS}}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MD")
 endif()
 
@@ -59,7 +59,7 @@ define_cpp_macro(PGL_USE_DOUBLE 1)
 
 
 ## ###################################################################
-## Dependencies 
+## Dependencies
 ## ###################################################################
 
 # --- Python
@@ -71,6 +71,7 @@ message(STATUS "Python lib : " ${Python3_LIBRARIES})
 
 # --- Libraries
 
+find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Qt)
 
@@ -89,7 +90,6 @@ else()
 endif()
 
 find_package(ZLIB REQUIRED)
-find_package(OpenGL REQUIRED)
 find_package(PNG REQUIRED)
 find_package(JPEG REQUIRED)
 
@@ -111,7 +111,7 @@ if (Boost_FOUND)
         set(USE_BOOST_NUMPY ON)
     elseif(DEFINED Boost_NUMPY${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}_LIBRARY_RELEASE)
         define_macro(PGL_WITH_BOOST_NUMPY 1)
-        set(USE_BOOST_NUMPY ON)    
+        set(USE_BOOST_NUMPY ON)
     else()
         define_macro(PGL_WITH_BOOST_NUMPY 0)
         set(USE_BOOST_NUMPY OFF)
@@ -135,7 +135,7 @@ if (BISON_FOUND AND FLEX_FOUND)
     define_py_macro(PGL_WITH_BISONFLEX "True")
 else()
     message(STATUS "Build PlantGL without Bison/Flex - Not found.")
-    
+
     define_py_macro(PGL_WITH_BISONFLEX "False")
 endif()
 
@@ -151,10 +151,10 @@ if (CGAL_FOUND)
     else()
         message(STATUS "Build PlantGL without GMP - Library not found. Use CGAL without it.")
     endif()
-    
+
 else()
     message(STATUS "Build PlantGL without CGAL - Library not found.")
-    
+
     define_py_macro(PGL_WITH_CGAL "False")
 endif()
 
