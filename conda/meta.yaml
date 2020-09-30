@@ -34,34 +34,46 @@ requirements:
       - libglu                            # [linux]
       - xorg-libxfixes                    # [linux]
 
+      # https://github.com/conda-forge/glew-feedstock/issues/9#issuecomment-450441917
   build:
       - python {{PY_VER}}
       - {{ compiler('cxx') }}
-      - {{ compiler('c') }}
       - bison                             # [unix]
       - flex                              # [unix]
       - m2-bison                          # [win]
       - m2-flex                           # [win]
       - menuinst                          # [win]
-      - cmake >=3.12.0
-      - pkg-config                        # [linux]
-      - make                              # [unix]
-      - libglu  # [linux]
-      - mesalib  # [linux]
-      - compilers   # [linux]
+      - {{ compiler("c") }}
+      - {{ compiler("cxx") }}
+      - cmake
+      - pkg-config                         # [linux]
+      - {{ cdt('xorg-x11-proto-devel') }}  # [linux]
+      - {{ cdt('libx11-devel') }}          # [linux]
+      - {{ cdt('libxcb') }}                # [linux]
+      - {{ cdt('libXfixes') }}             # [linux]
+      - {{ cdt('libXxf86vm') }}            # [linux]
+      - {{ cdt('libxext-devel') }}         # [linux]
+      - {{ cdt('libxrender-devel') }}      # [linux]
+      - {{ cdt('mesa-libgl-devel') }}      # [linux]
+      - {{ cdt('mesa-dri-drivers') }}      # [linux]
+      - {{ cdt('libselinux') }}            # [linux]
+      - {{ cdt('libXdamage') }}            # [linux]
+      - {{ cdt('libXau') }}                # [linux]
   run:
       - python {{PY_VER}}
       - setuptools
       - ipython
-      - {{ pin_compatible('numpy') }}
-      - {{ pin_compatible('boost',    max_pin='x.x.x') }}
-      - {{ pin_compatible('qhull',    max_pin='x.x') }}
-      - {{ pin_compatible('eigen',    max_pin='x.x') }}
-      - {{ pin_compatible('cgal-cpp', max_pin='x.x') }}
-      - {{ pin_compatible('ann',      max_pin='x.x') }}
-      - {{ pin_compatible('qt',       max_pin='x.x') }}
-      - {{ pin_compatible('libpng',   max_pin='x.x') }}
-      - {{ pin_compatible('zlib',     max_pin='x.x') }}
+      - {{ cdt('libx11') }}                # [linux]
+      - {{ cdt('libxcb') }}                # [linux]
+      - {{ cdt('libXfixes') }}             # [linux]
+      - {{ cdt('libXxf86vm') }}            # [linux]
+      - {{ cdt('libxext') }}               # [linux]
+      - {{ cdt('libxrender') }}            # [linux]
+      - {{ cdt('mesa-libgl') }}            # [linux]
+      - {{ cdt('mesa-dri-drivers') }}      # [linux]
+      - {{ cdt('libselinux') }}            # [linux]
+      - {{ cdt('libXdamage') }}            # [linux]
+      - {{ cdt('libXau') }}                # [linux]
       - pyqt
       - pyopengl
       - pyqglviewer

@@ -2,14 +2,14 @@
 if (DEFINED ENV{CONDA_PREFIX})
     # Anaconda Environment
     message(STATUS "Anaconda environment detected: " $ENV{CONDA_PREFIX})
-    
-    
+
+
     if (DEFINED ENV{PREFIX})
         file(TO_CMAKE_PATH $ENV{PREFIX} TMP_CONDA_ENV)
     else()
         file(TO_CMAKE_PATH $ENV{CONDA_PREFIX} TMP_CONDA_ENV)
     endif()
-    
+
     if (WIN32)
         set(CONDA_ENV "${TMP_CONDA_ENV}/Library/")
     else()
@@ -45,13 +45,13 @@ if (DEFINED ENV{CONDA_BUILD})
     if (APPLE)
         set(CMAKE_OSX_ARCHITECTURES $ENV{OSX_ARCH})
     endif()
-   
+
     set(CMAKE_CXX_COMPILER $ENV{CXX})
     set(CMAKE_CXX_COMPILER_RANLIB $ENV{RANLIB})
     set(CMAKE_CXX_COMPILER_AR $ENV{AR})
 
     # where is the target environment
-    set(CMAKE_FIND_ROOT_PATH $ENV{PREFIX} $ENV{BUILD_PREFIX} $ENV{BUILD_PREFIX}/$ENV{HOST}/sysroot $ENV{CONDA_BUILD_SYSROOT})
+    set(CMAKE_FIND_ROOT_PATH $ENV{PREFIX} $ENV{BUILD_PREFIX} $ENV{BUILD}/$ENV{HOST}/sysroot $ENV{BUILD_PREFIX}/$ENV{HOST}/sysroot $ENV{CONDA_BUILD_SYSROOT})
 
     message("CMAKE_FIND_ROOT_PATH :" ${CMAKE_FIND_ROOT_PATH})
 
@@ -85,5 +85,3 @@ elseif (NOT DEFINED CMAKE_INSTALL_PREFIX)
 else()
     message(STATUS "Install Prefix: " ${CMAKE_INSTALL_PREFIX})
 endif()
-
-
