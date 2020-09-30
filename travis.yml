@@ -30,7 +30,6 @@ install:
   - source install.sh
   - conda config --prepend channels fredboudon
   - conda config --prepend channels conda-forge
-  - conda config --prepend channels anaconda
 
 before_script:
   - source before_script.sh
