@@ -22,7 +22,7 @@ env:
 #    CONDA_NPY=116
 
 install:
-  - git clone https://github.com/StatisKit/travis-ci.git
+  - git clone https://github.com/openalea/travis-ci.git
   - cd travis-ci
   - source install.sh
   - conda config --prepend channels fredboudon
@@ -51,5 +51,5 @@ script:
 # after_deploy:
 #   - source after_deploy.sh
 
-#after_script:
+# after_script:
 #  - source after_script.sh
