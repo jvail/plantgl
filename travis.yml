@@ -4,7 +4,7 @@ os:
   - linux
   #- osx
 
-dist: xenial
+dist: bionic
 
 sudo: required
 
@@ -22,25 +22,23 @@ env:
 #    CONDA_NPY=116
 
 install:
-  - if [ `uname` = "Darwin" ]; then xcrun --show-sdk-path; fi
   - git clone https://github.com/openalea/travis-ci.git
   - cd travis-ci
-  - conda clean -i
   - source install.sh
   - conda config --prepend channels fredboudon
   - conda config --prepend channels conda-forge
 
-before_script:
-  - source before_script.sh
+# before_script:
+#   - source before_script.sh
 
-script:
-  - source script.sh
+# script:
+#   - source script.sh
 
-after_success:
-  - source after_success.sh
+# after_success:
+#   - source after_success.sh
 
-after_failure:
-  - source after_failure.sh
+# after_failure:
+#   - source after_failure.sh
 
 # before_deploy:
 #   - source before_deploy.sh
@@ -53,5 +51,5 @@ after_failure:
 # after_deploy:
 #   - source after_deploy.sh
 
-after_script:
-  - source after_script.sh
+#after_script:
+#  - source after_script.sh
