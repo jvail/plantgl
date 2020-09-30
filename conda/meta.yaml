@@ -31,30 +31,24 @@ requirements:
       - boost<=1.71 # boost module of conda-forge install boost.python and dependency boost-cpp for the cpp libs.
       - libpng
       - zlib
-      - libglu                            # [linux64]
-      - xorg-libxfixes                    # [linux64]
+      - libglu                            # [linux]
+      - xorg-libxfixes                    # [linux]
 
   build:
       - python {{PY_VER}}
-      - binutils_impl_linux-64       # [linux64]
       - {{ compiler('cxx') }}
       - {{ compiler('c') }}
-      - sysroot_linux-64 2.17            # [linux64]
       - bison                             # [unix]
       - flex                              # [unix]
       - m2-bison                          # [win]
       - m2-flex                           # [win]
       - menuinst                          # [win]
       - cmake >=3.12.0
-      - pkg-config                        # [linux64]
+      - pkg-config                        # [linux]
       - make                              # [unix]
-      - {{ cdt('mesa-libgl-devel') }}     # [linux64]
-      - {{ cdt('mesa-dri-drivers') }}     # [linux64]
-      - {{ cdt('libselinux') }}           # [linux64]
-      - {{ cdt('libxdamage') }}           # [linux64]
-      - {{ cdt('libxxf86vm') }}           # [linux64]
-      - {{ cdt('libxext') }}              # [linux64]
-      - libglu                            # [linux64]
+      - libglu  # [linux]
+      - mesalib  # [linux]
+      - compilers   # [linux]
   run:
       - python {{PY_VER}}
       - setuptools
@@ -71,8 +65,8 @@ requirements:
       - pyqt
       - pyopengl
       - pyqglviewer
-      - xorg-libxfixes                     # [linux64]
-      - libglu                             # [linux64]
+      - xorg-libxfixes                     # [linux]
+      - libglu                             # [linux]
 
 test:
    requires:
