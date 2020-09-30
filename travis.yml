@@ -37,22 +37,22 @@ before_script:
 script:
   - source script.sh
 
-# after_success:
-#   - source after_success.sh
+after_success:
+  - source after_success.sh
 
-# after_failure:
-#   - source after_failure.sh
+after_failure:
+  - source after_failure.sh
 
-# before_deploy:
-#   - source before_deploy.sh
+before_deploy:
+  - source before_deploy.sh
 
-# deploy:
-#   skip_cleanup: true
-#   provider: script
-#   script: bash deploy_script.sh
+deploy:
+  skip_cleanup: true
+  provider: script
+  script: bash deploy_script.sh
 
-# after_deploy:
-#   - source after_deploy.sh
+after_deploy:
+  - source after_deploy.sh
 
-# after_script:
-#  - source after_script.sh
+after_script:
+ - source after_script.sh
