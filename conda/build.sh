@@ -20,6 +20,8 @@ SYSTEM_DEPENDENT_ARGS=(
     "-DOPENGL_opengl_LIBRARY=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
     "-DOPENGL_glx_LIBRARY=${BUILD_PREFIX}/${HOST}/sysroot/usr/lib64/libGL.so"
     "-DOPENGL_INCLUDE_DIR=${BUILD_PREFIX}/${HOST}/sysroot/usr/include"
+    "-DCMAKE_CXX_FLAGS=-I${BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot/usr/include"
+    "-DCMAKE_EXE_LINKER_FLAGS=-L${BUILD_PREFIX}/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 )
 fi
 
