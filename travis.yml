@@ -12,9 +12,10 @@ services:
   - docker
 
 env:
-  # - CONDA_RECIPE=conda
-  #   CONDA_VERSION=3
-  #   CONDA_PY=37
+  - CONDA_RECIPE=conda
+    CONDA_VERSION=3
+    CONDA_PY=37
+    CONDA_NPY=116
 
  - CONDA_RECIPE=conda
    CONDA_VERSION=3
