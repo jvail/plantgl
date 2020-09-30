@@ -21,6 +21,9 @@ env:
 #    CONDA_PY=38
 #    CONDA_NPY=116
 
+before_install:
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then conda clean -i; fi
+
 install:
   - if [ `uname` = "Darwin" ]; then xcrun --show-sdk-path; fi
   - git clone https://github.com/openalea/travis-ci.git
