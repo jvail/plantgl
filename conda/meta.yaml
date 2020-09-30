@@ -59,6 +59,7 @@ requirements:
       - {{ cdt('libselinux') }}            # [linux]
       - {{ cdt('libXdamage') }}            # [linux]
       - {{ cdt('libXau') }}                # [linux]
+      - expat                              # [linux]
   run:
       - python {{PY_VER}}
       - setuptools
@@ -79,6 +80,7 @@ requirements:
       - pyqglviewer
       - xorg-libxfixes                     # [linux]
       - libglu                             # [linux]
+      - expat                             # [linux]
 
 test:
    requires:
