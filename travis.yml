@@ -22,9 +22,6 @@ env:
     CONDA_PY=38
     CONDA_NPY=116
 
-# before_install:
-#   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get -y install libgl1-mesa-dev; fi
-
 install:
   - git clone https://github.com/openalea/travis-ci.git
   - cd travis-ci

@@ -63,17 +63,6 @@ requirements:
       - python {{PY_VER}}
       - setuptools
       - ipython
-      - {{ cdt('libx11') }}                # [linux]
-      - {{ cdt('libxcb') }}                # [linux]
-      - {{ cdt('libXfixes') }}             # [linux]
-      - {{ cdt('libXxf86vm') }}            # [linux]
-      - {{ cdt('libxext') }}               # [linux]
-      - {{ cdt('libxrender') }}            # [linux]
-      - {{ cdt('mesa-libgl') }}            # [linux]
-      - {{ cdt('mesa-dri-drivers') }}      # [linux]
-      - {{ cdt('libselinux') }}            # [linux]
-      - {{ cdt('libXdamage') }}            # [linux]
-      - {{ cdt('libXau') }}                # [linux]
       - pyqt
       - pyopengl
       - pyqglviewer
@@ -85,6 +74,7 @@ test:
      - pytest
      - matplotlib-base
      - pandas
+     - boost<=1.71
    imports:
      - openalea.plantgl
      - openalea.plantgl.all
