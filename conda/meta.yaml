@@ -77,6 +77,10 @@ test:
      - matplotlib-base
      - pandas
      - boost<=1.71
+     - eigen
+     - cgal-cpp
+     - qhull
+     - ann
    imports:
      - openalea.plantgl
      - openalea.plantgl.all
