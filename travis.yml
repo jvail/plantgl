@@ -4,29 +4,29 @@ os:
   - linux
   - osx
 
-dist: xenial
-
-sudo: required
+#dist: bionic
 
 services:
   - docker
 
 env:
- - CONDA_RECIPE=conda
-   CONDA_VERSION=3
-   CONDA_PY=37
- - CONDA_RECIPE=conda
-   CONDA_VERSION=3
-   CONDA_PY=38
-   CONDA_NPY=116
+  global:
+      - CONDA_RECIPE=conda CONDA_VERSION=3
+  jobs:
+      - CONDA_PY=37
+      - CONDA_PY=38 CONDA_NPY=116
+      - CONDA_PY=39 CONDA_NPY=119
+jobs :
+    allow_failures:
+    - env : CONDA_PY=39 CONDA_NPY=119
 
 before_install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get -y install libgl1-mesa-dev; fi
 
 install:
-  - if [ `uname` = "Darwin" ]; then xcrun --show-sdk-path; fi
   - git clone https://github.com/openalea/travis-ci.git
   - cd travis-ci
+  - source downloadsdk.sh
   - source install.sh
   - conda config --prepend channels fredboudon
   - conda config --prepend channels conda-forge
