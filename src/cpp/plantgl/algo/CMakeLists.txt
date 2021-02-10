@@ -47,10 +47,10 @@ add_library(pglalgo SHARED ${SRC_FILES})
 if (GENERATE_PARSER)
     # Flex Include Directories
     target_include_directories(pglalgo PRIVATE ${FLEX_INCLUDE_DIRS})
-    
+
     # Generated Headers
     target_include_directories(pglalgo PRIVATE ${BIN_DIR})
-    
+
     # Codec Directory
     target_include_directories(pglalgo PRIVATE "${SRC_DIR}/codec")
 endif()
@@ -71,6 +71,7 @@ endif()
 
 target_link_libraries(pglalgo ${ANN_LIBRARIES})
 target_link_libraries(pglalgo ${QHULL_LIBRARIES})
+target_link_libraries(pglalgo ${DRACO_LIBRARY})
 
 if(APPLE)
   target_link_libraries(pglalgo "-framework AGL")
